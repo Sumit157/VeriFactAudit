@@ -68,7 +68,10 @@ export const getTrendingClaims = async (): Promise<TrendingSignal[]> => {
         timestamp: parts[5] || "Just Now"
       };
     }).slice(0, 5);
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.message?.includes("429") || error?.status === 429) {
+      throw new Error("QUOTA_EXHAUSTED");
+    }
     console.error("Trends fetch failed:", error);
     return [];
   }
@@ -141,6 +144,9 @@ export const verifyClaimWithAI = async (query: string, imageBase64?: string): Pr
       timestamp: new Date().toISOString()
     };
   } catch (error: any) {
+    if (error?.message?.includes("429") || error?.status === 429) {
+      throw new Error("QUOTA_EXHAUSTED");
+    }
     if (error?.message?.includes("Requested entity was not found")) {
       if (window.aistudio?.openSelectKey) window.aistudio.openSelectKey();
       throw new Error("System node re-authentication required.");

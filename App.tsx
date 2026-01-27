@@ -10,6 +10,10 @@ import FeedbackSection from './components/FeedbackSection';
 import CursorFollower from './components/CursorFollower';
 import CredibilityGauge from './components/CredibilityGauge';
 
+const CACHE_KEY = 'verifact_trends_cache';
+const CACHE_TIME_KEY = 'verifact_trends_timestamp';
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+
 const App: React.FC = () => {
   const [view, setView] = useState<'home' | 'docs'>('home');
   const [query, setQuery] = useState('');
@@ -23,16 +27,37 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    refreshTrends();
+    loadTrends();
   }, []);
+
+  const loadTrends = async () => {
+    const cachedData = localStorage.getItem(CACHE_KEY);
+    const cachedTime = localStorage.getItem(CACHE_TIME_KEY);
+    
+    const now = Date.now();
+    if (cachedData && cachedTime && (now - parseInt(cachedTime)) < CACHE_DURATION) {
+      setTrendingSignals(JSON.parse(cachedData));
+      return;
+    }
+    
+    refreshTrends();
+  };
 
   const refreshTrends = async () => {
     setIsRefreshingTrends(true);
     try {
       const trends = await getTrendingClaims();
-      if (trends.length > 0) setTrendingSignals(trends);
-    } catch (e) {
-      console.error("Signal refresh failed", e);
+      if (trends.length > 0) {
+        setTrendingSignals(trends);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(trends));
+        localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
+      }
+    } catch (e: any) {
+      if (e.message === "QUOTA_EXHAUSTED") {
+        console.warn("Trends fetch skipped: Quota exhausted.");
+      } else {
+        console.error("Signal refresh failed", e);
+      }
     } finally {
       setIsRefreshingTrends(false);
     }
@@ -67,7 +92,11 @@ const App: React.FC = () => {
         if (report) report.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     } catch (err: any) {
-      setError(err.message || "Audit interrupted by system exception.");
+      if (err.message === "QUOTA_EXHAUSTED") {
+        setError("API Quota Depleted. Your Gemini free tier limit has been reached. Please wait a few minutes or check your Google AI Studio dashboard.");
+      } else {
+        setError(err.message || "Audit interrupted by system exception.");
+      }
       setStatus(VerificationStatus.ERROR);
     }
   };
@@ -285,7 +314,15 @@ const App: React.FC = () => {
                 <div className="inline-block p-12 border border-[#FF3E3E]/30 bg-[#FF3E3E]/5 rounded-2xl max-w-md">
                   <h2 className="text-3xl font-black text-[#FF3E3E] mb-4">Audit Exception</h2>
                   <p className="text-[#888] mb-8">{error}</p>
-                  <button onClick={() => setStatus(VerificationStatus.IDLE)} className="px-8 py-3 bg-[#FF3E3E] text-white font-bold rounded-lg cursor-none">Reset</button>
+                  <button 
+                    onClick={() => {
+                      setStatus(VerificationStatus.IDLE);
+                      setError(null);
+                    }} 
+                    className="px-8 py-3 bg-[#FF3E3E] text-white font-bold rounded-lg cursor-none hover:brightness-110"
+                  >
+                    Reset System
+                  </button>
                 </div>
               </div>
             )}
