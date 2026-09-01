@@ -29,6 +29,3 @@ GitHub Pages is great for hosting static sites directly from your repository.
 When you move this code out of this environment:
 - **Do not** hardcode your API key directly into the files and upload them to a public GitHub repository. Anyone who finds your repository can steal your key.
 - Using **Vercel** or **Netlify** environment variables is the safest free way to keep your key hidden while keeping your app functional.
-
-## Getting a Gemini API Key
-If you don't have a personal key yet, you can get one for free at the [Google AI Studio](https://aistudio.google.com/).
